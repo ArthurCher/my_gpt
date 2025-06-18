@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI()
 
 DB_PATH = "chat_history.db"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
