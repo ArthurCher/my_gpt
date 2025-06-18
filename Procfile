@@ -1,1 +1,1 @@
-web: python my_gpt.py
+web: python main.py
