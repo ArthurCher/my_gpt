@@ -6,8 +6,7 @@ from flask import Flask, request
 from werkzeug.utils import secure_filename
 from openai import OpenAI
 from dotenv import load_dotenv
-
-load_dotenv()  # загрузка .env
+load_dotenv(dotenv_path=".env")
 
 app = Flask(__name__)
 
