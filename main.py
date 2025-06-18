@@ -5,65 +5,53 @@ import base64
 from flask import Flask, request
 from werkzeug.utils import secure_filename
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # загрузка .env
 
 app = Flask(__name__)
 
-# Диагностика переменных окружения
-print("🔍 OPENAI_API_KEY:", os.environ.get("OPENAI_API_KEY"))
-print("🔍 TELEGRAM_BOT_TOKEN:", os.environ.get("TELEGRAM_BOT_TOKEN"))
+print("🔍 OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+print("🔍 TELEGRAM_BOT_TOKEN:", os.getenv("TELEGRAM_BOT_TOKEN"))
 
 try:
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     print("✅ OpenAI client initialized")
 except Exception as e:
     print("❌ Failed to initialize OpenAI client:", e)
     raise
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 DB_PATH = "chat_history.db"
-
 os.makedirs("files", exist_ok=True)
 
 def save_message(chat_id, role, content):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO chat_history (chat_id, role, content) VALUES (?, ?, ?)",
-        (chat_id, role, content)
-    )
+    cursor.execute("INSERT INTO chat_history (chat_id, role, content) VALUES (?, ?, ?)", (chat_id, role, content))
     conn.commit()
     conn.close()
 
 def get_chat_history(chat_id, limit=10):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT role, content FROM chat_history WHERE chat_id = ? ORDER BY id DESC LIMIT ?",
-        (chat_id, limit)
-    )
+    cursor.execute("SELECT role, content FROM chat_history WHERE chat_id = ? ORDER BY id DESC LIMIT ?", (chat_id, limit))
     rows = cursor.fetchall()
     conn.close()
     return [{"role": role, "content": content} for role, content in reversed(rows)]
 
 def ask_gpt(messages):
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages
-    )
+    response = client.chat.completions.create(model="gpt-4o", messages=messages)
     return response.choices[0].message.content.strip()
 
 def ask_gpt_vision(image_b64):
     response = client.chat.completions.create(
         model="gpt-4-vision-preview",
-        messages=[
-            {"role": "user", "content": [
-                {"type": "text", "text": "Опиши и проанализируй изображение"},
-                {"type": "image_url", "image_url": {
-                    "url": f"data:image/jpeg;base64,{image_b64}"
-                }}
-            ]}
-        ],
+        messages=[{"role": "user", "content": [
+            {"type": "text", "text": "Опиши и проанализируй изображение"},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+        ]}],
         max_tokens=1000
     )
     return response.choices[0].message.content.strip()
@@ -73,7 +61,6 @@ def webhook():
     data = request.get_json()
     message = data.get("message", {})
     chat_id = str(message.get("chat", {}).get("id"))
-
     if "text" in message:
         user_text = message["text"]
         save_message(chat_id, "user", user_text)
@@ -82,7 +69,6 @@ def webhook():
         save_message(chat_id, "assistant", reply)
         send_text(chat_id, reply)
         return "ok"
-
     if "photo" in message:
         file_id = message["photo"][-1]["file_id"]
         image_b64 = download_and_encode_image(file_id)
@@ -90,7 +76,6 @@ def webhook():
             reply = ask_gpt_vision(image_b64)
             send_text(chat_id, reply)
         return "ok"
-
     if "document" in message:
         file_id = message["document"]["file_id"]
         file_name = message["document"]["file_name"]
@@ -101,14 +86,10 @@ def webhook():
             reply = ask_gpt([{"role": "user", "content": prompt}])
             send_text(chat_id, reply)
         return "ok"
-
     return "ok"
 
 def send_text(chat_id, text):
-    requests.post(f"{TELEGRAM_API}/sendMessage", data={
-        "chat_id": chat_id,
-        "text": text
-    })
+    requests.post(f"{TELEGRAM_API}/sendMessage", data={"chat_id": chat_id, "text": text})
 
 def download_file(file_id, filename):
     file_info = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}").json()
