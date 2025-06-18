@@ -4,3 +4,4 @@ python-docx
 pymupdf
 pandas
 requests
+python-dotenv
