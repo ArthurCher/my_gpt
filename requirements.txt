@@ -1,6 +1,6 @@
 flask
-openai
-requests
+openai>=1.0.0
 python-docx
 pymupdf
 pandas
+requests
