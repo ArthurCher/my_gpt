@@ -8,11 +8,20 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-client = OpenAI()
+# Диагностика переменных окружения
+print("🔍 OPENAI_API_KEY:", os.environ.get("OPENAI_API_KEY"))
+print("🔍 TELEGRAM_BOT_TOKEN:", os.environ.get("TELEGRAM_BOT_TOKEN"))
 
-DB_PATH = "chat_history.db"
+try:
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    print("✅ OpenAI client initialized")
+except Exception as e:
+    print("❌ Failed to initialize OpenAI client:", e)
+    raise
+
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+DB_PATH = "chat_history.db"
 
 os.makedirs("files", exist_ok=True)
 
