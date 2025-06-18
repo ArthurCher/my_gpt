@@ -11,8 +11,8 @@ load_dotenv()  # загрузка .env
 
 app = Flask(__name__)
 
-print("🔍 OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
-print("🔍 TELEGRAM_BOT_TOKEN:", os.getenv("TELEGRAM_BOT_TOKEN"))
+print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+print("TELEGRAM_BOT_TOKEN:", os.getenv("TELEGRAM_BOT_TOKEN"))
 
 try:
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
