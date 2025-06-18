@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=".env")
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    organization=os.getenv("OPENAI_ORG_ID"),
+    project=os.getenv("OPENAI_PROJECT_ID")
+)
 
 app = Flask(__name__)
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
