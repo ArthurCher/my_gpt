@@ -61,7 +61,8 @@ def ask_gpt_vision(image_b64):
     )
     return response.choices[0].message.content.strip()
 
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
+
 def webhook():
     data = request.get_json()
     message = data.get("message", {})
