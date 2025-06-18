@@ -18,6 +18,8 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 DB_PATH = "thread_map.db"
 
+print("🔐 OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
