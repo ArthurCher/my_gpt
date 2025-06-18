@@ -1,21 +1,20 @@
 import os
 import sqlite3
-import openai
 import requests
 import base64
 from flask import Flask, request
 from werkzeug.utils import secure_filename
+from openai import OpenAI
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ.get("7512435984:AAHp0v7Bj9uFiDZohmRyKU8dkDjWkrbDLGw")
-OPENAI_API_KEY = os.environ.get("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")
-openai.api_key = OPENAI_API_KEY
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 DB_PATH = "chat_history.db"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-# Создаем директорию для файлов
 os.makedirs("files", exist_ok=True)
 
 def save_message(chat_id, role, content):
@@ -40,14 +39,14 @@ def get_chat_history(chat_id, limit=10):
     return [{"role": role, "content": content} for role, content in reversed(rows)]
 
 def ask_gpt(messages):
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages
     )
     return response.choices[0].message.content.strip()
 
 def ask_gpt_vision(image_b64):
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4-vision-preview",
         messages=[
             {"role": "user", "content": [
@@ -62,7 +61,6 @@ def ask_gpt_vision(image_b64):
     return response.choices[0].message.content.strip()
 
 @app.route("/webhook", methods=["POST"])
-
 def webhook():
     data = request.get_json()
     message = data.get("message", {})
@@ -138,7 +136,7 @@ def extract_text_from_file(path):
             doc = Document(path)
             return "\n".join([p.text for p in doc.paragraphs])
         elif ext == ".pdf":
-            import fitz  # PyMuPDF
+            import fitz
             text = ""
             with fitz.open(path) as pdf:
                 for page in pdf:
