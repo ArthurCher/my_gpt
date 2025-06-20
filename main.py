@@ -97,7 +97,7 @@ def webhook():
     }
 
     if file_ids:
-        msg_data["attachments"] = [{"file_id": fid, "tools": ["file_search"]} for fid in file_ids]
+        msg_data["attachments"] = [{"file_id": fid, "tools": [{"type": "file_search"}]} for fid in file_ids]
 
     client.beta.threads.messages.create(**msg_data)
 
