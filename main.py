@@ -83,7 +83,6 @@ def webhook():
 
     user_text = message.get("caption") or message.get("text") or "Объясни, что на изображении"
     attachments = []
-    vision_content = []
 
     if "photo" in message:
         file_id = message["photo"][-1]["file_id"]
@@ -91,11 +90,24 @@ def webhook():
         if not is_supported_image(filename):
             send_text(chat_id, f"Изображение {filename} имеет неподдерживаемый формат. Поддержка: {', '.join(ALLOWED_IMAGE_FORMATS)}")
             return "ok"
+
         base64_image = encode_image_to_base64(filename)
-        vision_content = [
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
-            {"type": "text", "text": user_text}
-        ]
+        vision_response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                        {"type": "text", "text": user_text}
+                    ]
+                }
+            ],
+            max_tokens=1000
+        )
+        reply = vision_response.choices[0].message.content
+        send_text(chat_id, reply)
+        return "ok"
 
     elif "document" in message:
         file_id = message["document"]["file_id"]
@@ -114,18 +126,11 @@ def webhook():
         send_text(chat_id, "Пожалуйста, отправьте текст, изображение или допустимый документ.")
         return "ok"
 
-    if vision_content:
-        msg_data = {
-            "thread_id": thread_id,
-            "role": "user",
-            "content": vision_content
-        }
-    else:
-        msg_data = {
-            "thread_id": thread_id,
-            "role": "user",
-            "content": user_text
-        }
+    msg_data = {
+        "thread_id": thread_id,
+        "role": "user",
+        "content": user_text
+    }
 
     if attachments:
         msg_data["attachments"] = attachments
