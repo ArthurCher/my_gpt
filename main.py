@@ -90,12 +90,16 @@ def webhook():
         send_text(chat_id, "Пожалуйста, отправьте текст, фото или документ.")
         return "ok"
 
-    client.beta.threads.messages.create(
-        thread_id=thread_id,
-        role="user",
-        content=user_text,
-        file_ids=file_ids if file_ids else None
-    )
+    msg_data = {
+        "thread_id": thread_id,
+        "role": "user",
+        "content": user_text
+    }
+
+    if file_ids:
+        msg_data["attachments"] = [{"file_id": fid, "tools": ["file_search"]} for fid in file_ids]
+
+    client.beta.threads.messages.create(**msg_data)
 
     run = client.beta.threads.runs.create(
         thread_id=thread_id,
