@@ -67,21 +67,21 @@ def webhook():
     thread_id = get_or_create_thread(chat_id)
 
     user_text = message.get("caption") or message.get("text") or "Проанализируй файл"
-    file_ids = []
+    tool_resources = []
 
     if "photo" in message:
         file_id = message["photo"][-1]["file_id"]
         filename = download_file(file_id)
         with open(filename, "rb") as f:
             uploaded = client.files.create(file=f, purpose="assistants")
-        file_ids.append(uploaded.id)
+        tool_resources.append({"type": "file_id", "file_id": uploaded.id})
 
     elif "document" in message:
         file_id = message["document"]["file_id"]
         filename = download_file(file_id)
         with open(filename, "rb") as f:
             uploaded = client.files.create(file=f, purpose="assistants")
-        file_ids.append(uploaded.id)
+        tool_resources.append({"type": "file_id", "file_id": uploaded.id})
 
     elif "text" in message:
         user_text = message["text"]
@@ -90,20 +90,17 @@ def webhook():
         send_text(chat_id, "Пожалуйста, отправьте текст, фото или документ.")
         return "ok"
 
-    message_data = {
-        "thread_id": thread_id,
-        "role": "user",
-        "content": user_text
-    }
-    if file_ids:
-        message_data["attachments"] = [{"file_id": fid} for fid in file_ids]
-
-    client.beta.threads.messages.create(**message_data)
+    client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=user_text
+    )
 
     run = client.beta.threads.runs.create(
         thread_id=thread_id,
         assistant_id=os.getenv("ASSISTANT_ID"),
-        tools=[{"type": "code_interpreter"}, {"type": "file_search"}]
+        tools=[{"type": "code_interpreter"}, {"type": "file_search"}],
+        tool_resources=tool_resources if tool_resources else None
     )
 
     for _ in range(30):
