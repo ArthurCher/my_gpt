@@ -103,7 +103,7 @@ def webhook():
     run = client.beta.threads.runs.create(
         thread_id=thread_id,
         assistant_id=os.getenv("ASSISTANT_ID"),
-        tools=[{"type": "code_interpreter"}, {"type": "browser"}]
+        tools=[{"type": "code_interpreter"}, {"type": "file_search"}]
     )
 
     for _ in range(30):
