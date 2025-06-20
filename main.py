@@ -1,6 +1,7 @@
 import os
 import requests
 import sqlite3
+import base64
 from flask import Flask, request
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -18,6 +19,8 @@ app = Flask(__name__)
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 DB_PATH = "thread_map.db"
+ALLOWED_EXTENSIONS = {"pdf", "csv", "txt", "md", "docx", "json"}
+ALLOWED_IMAGE_FORMATS = {"png", "jpeg", "jpg", "webp"}
 
 
 def init_db():
@@ -59,6 +62,18 @@ def download_file(file_id):
     return filename
 
 
+def encode_image_to_base64(filename):
+    with open(filename, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+
+def is_supported_file(filename):
+    return filename.split(".")[-1].lower() in ALLOWED_EXTENSIONS
+
+def is_supported_image(filename):
+    return filename.split(".")[-1].lower() in ALLOWED_IMAGE_FORMATS
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -66,38 +81,54 @@ def webhook():
     chat_id = str(message.get("chat", {}).get("id"))
     thread_id = get_or_create_thread(chat_id)
 
-    user_text = message.get("caption") or message.get("text") or "Проанализируй файл"
-    file_ids = []
+    user_text = message.get("caption") or message.get("text") or "Объясни, что на изображении"
+    attachments = []
+    vision_content = []
 
     if "photo" in message:
         file_id = message["photo"][-1]["file_id"]
         filename = download_file(file_id)
-        with open(filename, "rb") as f:
-            uploaded = client.files.create(file=f, purpose="assistants")
-        file_ids.append(uploaded.id)
+        if not is_supported_image(filename):
+            send_text(chat_id, f"Изображение {filename} имеет неподдерживаемый формат. Поддержка: {', '.join(ALLOWED_IMAGE_FORMATS)}")
+            return "ok"
+        base64_image = encode_image_to_base64(filename)
+        vision_content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+            {"type": "text", "text": user_text}
+        ]
 
     elif "document" in message:
         file_id = message["document"]["file_id"]
         filename = download_file(file_id)
+        if not is_supported_file(filename):
+            send_text(chat_id, f"Файл {filename} не поддерживается. Разрешённые форматы: {', '.join(ALLOWED_EXTENSIONS)}")
+            return "ok"
         with open(filename, "rb") as f:
             uploaded = client.files.create(file=f, purpose="assistants")
-        file_ids.append(uploaded.id)
+        attachments.append({"file_id": uploaded.id, "tools": [{"type": "file_search"}]})
 
     elif "text" in message:
         user_text = message["text"]
 
     else:
-        send_text(chat_id, "Пожалуйста, отправьте текст, фото или документ.")
+        send_text(chat_id, "Пожалуйста, отправьте текст, изображение или допустимый документ.")
         return "ok"
 
-    msg_data = {
-        "thread_id": thread_id,
-        "role": "user",
-        "content": user_text
-    }
+    if vision_content:
+        msg_data = {
+            "thread_id": thread_id,
+            "role": "user",
+            "content": vision_content
+        }
+    else:
+        msg_data = {
+            "thread_id": thread_id,
+            "role": "user",
+            "content": user_text
+        }
 
-    if file_ids:
-        msg_data["attachments"] = [{"file_id": fid, "tools": [{"type": "file_search"}]} for fid in file_ids]
+    if attachments:
+        msg_data["attachments"] = attachments
 
     client.beta.threads.messages.create(**msg_data)
 
